@@ -1,54 +1,43 @@
-import random, json
-from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+import logging
+import sys
+import time
+from src.sources.generator_source import TaskSourceGenerator
+from src.sources.file_source import TaskSourceFile
+from src.sources.api_source import TaskSourceAPI
+from src.models.task import TaskSource
 
 
-@dataclass
-class Task:
-    id: int
-    payload: dict
+def setup_logging() -> None:
+    """Настройка логирования только в консоль."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s] %(message)s',
+        datefmt='%H:%M:%S',
+        stream=sys.stdout
+    )
 
+def process_tasks(source: TaskSource, logger: logging.Logger) -> None:
+    """Обработка задач из любого источника, соответствующего протоколу."""
+    tasks = source.get_tasks()
+    logger.info(f"Получено {len(tasks)} задач из {source.__class__.__name__}")
+    for task in tasks:
+        logger.info(f"Задача {task.id}: {task.payload}")
 
-@runtime_checkable
-class TaskSource(Protocol):
-    def get_tasks(self) -> list[Task]:
-        pass
+def main() -> None:
+    setup_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("Запуск")
 
+    generator = TaskSourceGenerator()
+    api = TaskSourceAPI()
+    file = TaskSourceFile("data/tasks.json")
 
-class TaskSourceFile:
-    def __init__(self, file_name: str):
-        self.file_name = file_name
-        if not isinstance(self, TaskSource):
-            raise TypeError("Не соответствует протоколу TaskSource")
+    sources = [generator, api, file]
+    for source in sources:
+        if isinstance(source, TaskSource):
+            process_tasks(source, logger)
+        else:
+            logger.error(f"Источник {source.__class__.__name__} не соответствует протоколу")
 
-    def get_tasks(self) -> list[Task]:
-        try:
-            with open(self.file_name, "r") as f:
-                data = json.load(f)
-                tasks = [Task(id = i["id"], payload={"user_id": i["user_id"]}) for i in data]
-            return tasks
-        except Exception:
-            raise
-
-
-class TaskSourceGenerator:
-    def __init__(self):
-        if not isinstance(self, TaskSource):
-            raise TypeError("Не соответствует протоколу TaskSource")
-
-    def get_tasks(self) -> list[Task]:
-        return [Task(id = random.randint(1,101), payload = {"user_id": random.randint(100,1001), "count": random.randint(1000,10001)}) for i in range(10)]
-
-
-class TaskSourceAPI:
-    def __init__(self):
-        if not isinstance(self, TaskSource):
-            raise TypeError("Не соответствует протоколу TaskSource")
-
-    def get_tasks(self) -> list[Task]:
-        return [
-            Task(id=10, payload={"user_id": random.randint(100, 1001), "count": random.randint(1000,10001)}),
-            Task(id=11, payload={"user_id": random.randint(100, 1001), "count": random.randint(1000,10001)}),
-            Task(id=12, payload={"user_id": random.randint(100, 1001), "count": random.randint(1000,10001)}),
-            Task(id=13, payload={"user_id": random.randint(100, 1001), "count": random.randint(1000,10001)})
-        ]
+if __name__ == "__main__":
+    main()
