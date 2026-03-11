@@ -1,6 +1,5 @@
 import logging
 import sys
-import time
 from src.sources.generator_source import TaskSourceGenerator
 from src.sources.file_source import TaskSourceFile
 from src.sources.api_source import TaskSourceAPI
